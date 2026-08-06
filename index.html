@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIGNAL // PROMPT FORGE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0d;
+    --panel:#111116;
+    --panel-line:#1c1c22;
+    --ink:#e8e6e1;
+    --ink-dim:#9a9aa3;
+    --cyan:#4fd8e0;
+    --magenta:#ff4d8d;
+    --amber:#e0c34f;
+    --ok:#5fe085;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* static/noise texture */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, transparent 1px, transparent 2px, rgba(255,255,255,0.015) 3px);
+    pointer-events:none;
+    z-index:1;
+    mix-blend-mode:overlay;
+  }
+
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:48px 20px 80px;
+    position:relative;
+    z-index:2;
+  }
+
+  header{
+    margin-bottom:36px;
+    border-bottom:1px solid var(--panel-line);
+    padding-bottom:24px;
+  }
+  .eyebrow{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.18em;
+    color:var(--ink-dim);
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  h1{
+    font-family:'Space Mono',monospace;
+    font-size:clamp(28px, 6vw, 40px);
+    line-height:1.05;
+    margin:0 0 12px;
+    letter-spacing:-0.01em;
+    position:relative;
+    display:inline-block;
+  }
+  h1 .glitch-r, h1 .glitch-c{
+    position:absolute; top:0; left:0;
+    width:100%; opacity:0.5;
+    pointer-events:none;
+  }
+  h1 .glitch-r{ color:var(--magenta); transform:translate(1.5px,0); }
+  h1 .glitch-c{ color:var(--cyan); transform:translate(-1.5px,0); }
+  header p{
+    color:var(--ink-dim);
+    font-size:14.5px;
+    line-height:1.55;
+    max-width:520px;
+    margin:0;
+  }
+
+  label{
+    display:block;
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-bottom:8px;
+  }
+  .field{ margin-bottom:22px; }
+  textarea, select, input[type="text"]{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    font-size:15px;
+    padding:13px 14px;
+    border-radius:2px;
+    resize:vertical;
+    transition:border-color 0.15s;
+  }
+  textarea:focus, select:focus, input:focus{
+    outline:none;
+    border-color:var(--cyan);
+  }
+  textarea{ min-height:90px; line-height:1.5; }
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:560px){ .row{ grid-template-columns:1fr; } }
+
+  .toggle-row{
+    display:flex; align-items:flex-start; gap:12px;
+    padding:14px 16px;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:2px;
+    margin-bottom:12px;
+    cursor:pointer;
+  }
+  .toggle-row input{ margin-top:3px; accent-color:var(--cyan); width:16px; height:16px; flex-shrink:0; }
+  .toggle-text strong{ display:block; font-size:14px; margin-bottom:3px; font-weight:600; }
+  .toggle-text span{ font-size:12.5px; color:var(--ink-dim); line-height:1.4; }
+
+  button#generate{
+    font-family:'Space Mono',monospace;
+    font-size:13px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    background:var(--ink);
+    color:var(--bg);
+    border:none;
+    padding:15px 26px;
+    border-radius:2px;
+    cursor:pointer;
+    margin-top:8px;
+    width:100%;
+    position:relative;
+    transition:transform 0.1s;
+  }
+  button#generate:hover{ transform:translateY(-1px); }
+  button#generate:active{ transform:translateY(0); }
+
+  #output-section{ margin-top:40px; display:none; }
+  .output-head{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:10px;
+  }
+  .output-head .eyebrow{ margin-bottom:0; color:var(--ok); }
+  #copy-btn{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--panel-line);
+    color:var(--ink-dim);
+    padding:7px 12px;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  #copy-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
+  #copy-btn.copied{ border-color:var(--ok); color:var(--ok); }
+
+  #output-box{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-left:2px solid var(--cyan);
+    padding:20px 22px;
+    font-family:'Space Mono',monospace;
+    font-size:13px;
+    line-height:1.65;
+    white-space:pre-wrap;
+    color:#d4d2cc;
+    max-height:560px;
+    overflow-y:auto;
+  }
+
+  footer{
+    margin-top:56px;
+    padding-top:20px;
+    border-top:1px solid var(--panel-line);
+    font-size:12px;
+    color:var(--ink-dim);
+    font-family:'Space Mono',monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">SIGNAL TOOLS // 05</div>
+    <h1 data-text="PROMPT FORGE">
+      PROMPT FORGE
+      <span class="glitch-r" aria-hidden="true">PROMPT FORGE</span>
+      <span class="glitch-c" aria-hidden="true">PROMPT FORGE</span>
+    </h1>
+    <p>Feed it a theme. It hands back an engineered brief for ChatGPT — tuned for originality and rhythmic control, not a vague "write me a song about..." Copy the output, paste it into ChatGPT.</p>
+  </header>
+
+  <div class="field">
+    <label for="theme">Theme / seed</label>
+    <textarea id="theme" placeholder="e.g. a phone call you didn't answer in time, or the exact moment trust breaks"></textarea>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="mood">Mood / tone (optional)</label>
+      <input type="text" id="mood" placeholder="e.g. grief, defiance, cinematic dread">
+    </div>
+    <div class="field">
+      <label for="pov">Point of view</label>
+      <select id="pov">
+        <option value="first person, confessional">First person — confessional</option>
+        <option value="second person, direct address / accusatory">Second person — direct address</option>
+        <option value="third person, narrative distance">Third person — narrative</option>
+        <option value="unspecified — let the theme decide">Unspecified — let theme decide</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="structure">Structure</label>
+      <select id="structure">
+        <option value="Verse 1, Chorus, Verse 2, Chorus, Bridge, Final Chorus">Verse / Chorus / Verse / Chorus / Bridge / Final Chorus</option>
+        <option value="Verse 1, Pre-Chorus, Chorus, Verse 2, Pre-Chorus, Chorus, Bridge, Chorus">Verse / Pre-Chorus / Chorus (x2), Bridge, Chorus</option>
+        <option value="Intro, Verse 1, Chorus, Verse 2, Chorus, Outro (no bridge)">Verse / Chorus, no bridge</option>
+        <option value="freeform — whatever structure best serves the theme">Freeform</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="tempo">Rhythmic feel</label>
+      <select id="tempo">
+        <option value="slow dirge, sparse and heavy, long vowel sounds, few words per line">Slow dirge — sparse, heavy</option>
+        <option value="driving mid-tempo, steady syllable count, propulsive but controlled">Driving mid-tempo</option>
+        <option value="aggressive up-tempo, dense syllables, percussive consonants, short punchy lines">Aggressive up-tempo</option>
+      </select>
+    </div>
+  </div>
+
+  <label style="margin-top:4px;">Constraints</label>
+
+  <label class="toggle-row">
+    <input type="checkbox" id="raw-grounding" checked>
+    <span class="toggle-text">
+      <strong>Root it in one concrete scene</strong>
+      <span>Forces a single physical moment with a body doing something involuntary — not an abstract concept. This consistently outperforms concept-first prompts.</span>
+    </span>
+  </label>
+
+  <label class="toggle-row">
+    <input type="checkbox" id="banned-vocab" checked>
+    <span class="toggle-text">
+      <strong>Block overused/cliché vocabulary</strong>
+      <span>Bans coffee/café, morning/dawn/sunrise imagery, "not X, just X" constructions, and signal/system/frequency vocabulary.</span>
+    </span>
+  </label>
+
+  <label class="toggle-row">
+    <input type="checkbox" id="avoid-patterns" checked>
+    <span class="toggle-text">
+      <strong>Block overused imagery patterns</strong>
+      <span>Bans mirrors/reflections, frozen stillness, doors/keys/locks, and performed-calm narration.</span>
+    </span>
+  </label>
+
+  <label class="toggle-row">
+    <input type="checkbox" id="originality-check">
+    <span class="toggle-text">
+      <strong>Explicit originality self-check</strong>
+      <span>Instructs ChatGPT to verify no line resembles an existing published lyric before delivering the final version.</span>
+    </span>
+  </label>
+
+  <button id="generate">Generate prompt</button>
+
+  <div id="output-section">
+    <div class="output-head">
+      <div class="eyebrow">▸ OUTPUT — PASTE INTO CHATGPT</div>
+      <button id="copy-btn">Copy</button>
+    </div>
+    <div id="output-box"></div>
+  </div>
+
+  <footer>SIGNAL TOOLS — no data leaves this page. Nothing is stored or sent anywhere.</footer>
+</div>
+
+<script>
+function buildPrompt(){
+  const theme = document.getElementById('theme').value.trim() || "[no theme entered — describe one concrete moment before generating]";
+  const mood = document.getElementById('mood').value.trim();
+  const pov = document.getElementById('pov').value;
+  const structure = document.getElementById('structure').value;
+  const tempo = document.getElementById('tempo').value;
+  const rawGrounding = document.getElementById('raw-grounding').checked;
+  const bannedVocab = document.getElementById('banned-vocab').checked;
+  const avoidPatterns = document.getElementById('avoid-patterns').checked;
+  const originalityCheck = document.getElementById('originality-check').checked;
+
+  let p = "";
+
+  p += "You are a professional songwriter and lyricist. Write one complete, original song lyric based on the brief below. Follow every instruction precisely — do not skip, soften, or summarize any constraint.\n\n";
+
+  p += "THEME\n";
+  p += theme + "\n\n";
+
+  if (mood){
+    p += "MOOD / TONE\n" + mood + "\n\n";
+  }
+
+  p += "POINT OF VIEW\n" + pov + "\n\n";
+
+  p += "STRUCTURE\n" + structure + ". Label every section clearly (e.g. [Verse 1], [Chorus]).\n\n";
+
+  p += "RHYTHMIC OPTIMIZATION (non-negotiable)\n";
+  p += "- Feel: " + tempo + ".\n";
+  p += "- Every line within a given section (all verses together, all chorus repetitions together) must match in syllable count, give or take one syllable — this is a song, not a poem, and it has to be singable on a consistent melody.\n";
+  p += "- Keep stressed syllables landing in a consistent place line to line within each section, so the meter doesn't lurch.\n";
+  p += "- The chorus needs one clear, repeatable hook line — short, phonetically strong, easy to shout or sing back.\n";
+  p += "- Favor natural speech stress over forced rhyme. If a rhyme requires twisting normal word order or grammar, replace it.\n\n";
+
+  p += "ORIGINALITY (non-negotiable)\n";
+  p += "- Every line must be 100% original. Do not paraphrase, echo, or lift phrasing, structure, or hook ideas from any existing published song.\n";
+  p += "- Avoid generic songwriting stock phrases (e.g. \"burning like a fire,\" \"tears like rain,\" \"broken like glass\") — reach for imagery specific to the scene in the theme, not the nearest cliché.\n";
+
+  if (rawGrounding){
+    p += "- Ground the entire lyric in ONE concrete physical scene implied by the theme — a specific place, a specific body, a specific involuntary gesture (a hand that won't stop shaking, a breath held too long, a voice that cracks on one word). Build outward from that single moment rather than writing about the theme abstractly or conceptually.\n";
+  }
+
+  if (bannedVocab){
+    p += "- Do not use: coffee, café, morning, dawn, sunrise (or close synonyms for these), or \"not X, just X\" sentence constructions. Do not use signal/system/frequency/transmission vocabulary as metaphor.\n";
+  }
+
+  if (avoidPatterns){
+    p += "- Avoid these imagery patterns entirely: mirrors or reflections, frozen/stillness-as-metaphor, doors/keys/locks as metaphor, and a narrator describing their own calm as performance.\n";
+  }
+
+  p += "\n";
+
+  if (originalityCheck){
+    p += "SELF-CHECK BEFORE YOU ANSWER\n";
+    p += "Before giving your final answer, silently review every line against known song lyrics you're aware of. If any line is too close to an existing lyric in phrasing or structure, rewrite that line. Only then output the final version.\n\n";
+  }
+
+  p += "OUTPUT FORMAT\n";
+  p += "Output only the finished lyric with labeled sections. No preamble, no explanation, no alternate versions — one finished lyric, ready to record.";
+
+  return p;
+}
+
+document.getElementById('generate').addEventListener('click', function(){
+  const output = buildPrompt();
+  document.getElementById('output-box').textContent = output;
+  document.getElementById('output-section').style.display = 'block';
+  document.getElementById('copy-btn').classList.remove('copied');
+  document.getElementById('copy-btn').textContent = 'Copy';
+  document.getElementById('output-section').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+
+document.getElementById('copy-btn').addEventListener('click', function(){
+  const text = document.getElementById('output-box').textContent;
+  navigator.clipboard.writeText(text).then(function(){
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(function(){
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 1800);
+  });
+});
+</script>
+</body>
+</html>

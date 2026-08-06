@@ -299,7 +299,7 @@
     <div id="output-box"></div>
   </div>
 
-  <footer>SIGNAL TOOLS — no data leaves this page. Nothing is stored or sent anywhere.<br>v1.1 — 2026-08-05</footer>
+  <footer>SIGNAL TOOLS — no data leaves this page. Nothing is stored or sent anywhere.<br>v1.2 — 2026-08-06 (added clarity constraint)</footer>
 </div>
 
 <script>
@@ -336,6 +336,11 @@ function buildPrompt(){
   p += "- Keep stressed syllables landing in a consistent place line to line within each section, so the meter doesn't lurch.\n";
   p += "- The chorus needs one clear, repeatable hook line — short, phonetically strong, easy to shout or sing back.\n";
   p += "- Favor natural speech stress over forced rhyme. If a rhyme requires twisting normal word order or grammar, replace it.\n\n";
+
+  p += "CLARITY (non-negotiable)\n";
+  p += "- Every line must be understandable on first listen, spoken at normal pace, with nothing dropped that a listener needs in order to parse it. Never sacrifice grammar or clear meaning to hit the syllable count — simplify the image instead of compressing the sentence.\n";
+  p += "- One image per line, maximum. If a line stacks a metaphor, an unusual verb, and a compressed clause all at once, it will read as clutter, not density. Pick the single strongest image and let the rest of the line be plain.\n";
+  p += "- Prefer ordinary verbs a listener already knows over invented or stretched ones, unless the stretch is doing real, deliberate work — and even then, only once or twice in the whole song, not line after line.\n\n";
 
   p += "ORIGINALITY (non-negotiable)\n";
   p += "- Every line must be 100% original. Do not paraphrase, echo, or lift phrasing, structure, or hook ideas from any existing published song.\n";
@@ -391,6 +396,24 @@ document.getElementById('copy-btn').addEventListener('click', function(){
     }, 1800);
   });
 });
+
+// ── Unison handoff from Concept Extractor ──
+// Concept Extractor's Pass 3 opens this file as prompt-forge.html?theme=<scene>.
+// Pick that up on load, drop it straight into the theme field, and let the
+// person just hit Generate — no retyping the scene by hand.
+(function loadThemeFromQuery(){
+  try{
+    const params = new URLSearchParams(window.location.search);
+    const theme = params.get('theme');
+    if (theme) {
+      document.getElementById('theme').value = theme;
+      const note = document.createElement('div');
+      note.style.cssText = "font-family:'Space Mono',monospace;font-size:11px;color:var(--ok);margin-top:6px;";
+      note.textContent = '◈ Scene loaded from Concept Extractor';
+      document.getElementById('theme').insertAdjacentElement('afterend', note);
+    }
+  }catch(_){}
+})();
 </script>
 </body>
 </html>

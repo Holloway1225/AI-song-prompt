@@ -274,6 +274,14 @@
   </label>
 
   <label class="toggle-row">
+    <input type="checkbox" id="chorus-guard" checked>
+    <span class="toggle-text">
+      <strong>Guard against flat chorus lines</strong>
+      <span>Choruses are where a plain "telling" line is most likely to sneak in next to strong physical ones. Explicitly checks the chorus for that before finalizing.</span>
+    </span>
+  </label>
+
+  <label class="toggle-row">
     <input type="checkbox" id="originality-check">
     <span class="toggle-text">
       <strong>Explicit originality self-check</strong>
@@ -304,6 +312,7 @@ function buildPrompt(){
   const rawGrounding = document.getElementById('raw-grounding').checked;
   const bannedVocab = document.getElementById('banned-vocab').checked;
   const avoidPatterns = document.getElementById('avoid-patterns').checked;
+  const chorusGuard = document.getElementById('chorus-guard').checked;
   const originalityCheck = document.getElementById('originality-check').checked;
 
   let p = "";
@@ -342,6 +351,10 @@ function buildPrompt(){
 
   if (avoidPatterns){
     p += "- Avoid these imagery patterns entirely: mirrors or reflections, frozen/stillness-as-metaphor, doors/keys/locks as metaphor, and a narrator describing their own calm as performance.\n";
+  }
+
+  if (chorusGuard){
+    p += "- The chorus is the highest-risk spot for a flat \"telling\" line to slip in next to otherwise physical, specific ones (e.g. a line that just states a feeling — \"your voice is warm enough to stay\" — instead of showing it through the scene). Check every chorus line individually: if one of them tells instead of shows, or is noticeably more generic than the lines around it, rewrite it to match the specificity of the strongest line in the section.\n";
   }
 
   p += "\n";

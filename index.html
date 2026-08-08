@@ -113,6 +113,13 @@
     border-color:var(--cyan);
   }
   textarea{ min-height:90px; line-height:1.5; }
+  .char-count{
+    font-family:'Space Mono',monospace;
+    font-size:10.5px;
+    color:var(--ink-dim);
+    text-align:right;
+    margin-top:5px;
+  }
   .row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media (max-width:560px){ .row{ grid-template-columns:1fr; } }
 
@@ -128,6 +135,36 @@
   .toggle-row input{ margin-top:3px; accent-color:var(--cyan); width:16px; height:16px; flex-shrink:0; }
   .toggle-text strong{ display:block; font-size:14px; margin-bottom:3px; font-weight:600; }
   .toggle-text span{ font-size:12.5px; color:var(--ink-dim); line-height:1.4; }
+
+  .advanced-toggle{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--cyan);
+    background:none;
+    border:none;
+    padding:0 0 14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .advanced-toggle .arrow{ transition:transform 0.15s; display:inline-block; }
+  .advanced-toggle.open .arrow{ transform:rotate(90deg); }
+  #advanced-section{ display:none; }
+  #advanced-section.open{ display:block; }
+
+  .core-note{
+    font-size:12.5px;
+    color:var(--ink-dim);
+    line-height:1.5;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-left:2px solid var(--ok);
+    padding:12px 14px;
+    margin-bottom:22px;
+  }
 
   button#generate{
     font-family:'Space Mono',monospace;
@@ -152,9 +189,11 @@
   .output-head{
     display:flex; justify-content:space-between; align-items:center;
     margin-bottom:10px;
+    gap:8px;
   }
   .output-head .eyebrow{ margin-bottom:0; color:var(--ok); }
-  #copy-btn{
+  .output-actions{ display:flex; gap:8px; }
+  #copy-btn, #save-btn{
     font-family:'Space Mono',monospace;
     font-size:11px;
     letter-spacing:0.08em;
@@ -166,7 +205,7 @@
     border-radius:2px;
     cursor:pointer;
   }
-  #copy-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
+  #copy-btn:hover, #save-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
   #copy-btn.copied{ border-color:var(--ok); color:var(--ok); }
 
   #output-box{
@@ -209,6 +248,7 @@
   <div class="field">
     <label for="theme">Theme / seed</label>
     <textarea id="theme" placeholder="e.g. a phone call you didn't answer in time, or the exact moment trust breaks"></textarea>
+    <div class="char-count" id="theme-count">0 characters</div>
   </div>
 
   <div class="row">
@@ -246,6 +286,8 @@
       </select>
     </div>
   </div>
+
+  <div class="core-note">Repetition control, anti-escalating-imagery, emotional progression, and hook-uniqueness are now baked in as always-on rules below — these fixed the most common GPT failure modes and aren't worth making optional.</div>
 
   <label style="margin-top:4px;">Constraints</label>
 
@@ -289,17 +331,31 @@
     </span>
   </label>
 
+  <button type="button" class="advanced-toggle" id="advanced-btn"><span class="arrow">▸</span> Advanced constraints</button>
+  <div id="advanced-section">
+    <label class="toggle-row">
+      <input type="checkbox" id="internal-rhyme">
+      <span class="toggle-text">
+        <strong>Favor internal rhyme over end rhyme</strong>
+        <span>Pushes toward mid-line rhyme and near-rhyme ("cold hands / slow crash") instead of relying on end-of-line rhyme. Fits genres like Sleep Token / Bad Omens / Dayseeker. Leave off for more traditional end-rhymed structures.</span>
+      </span>
+    </label>
+  </div>
+
   <button id="generate">Generate prompt</button>
 
   <div id="output-section">
     <div class="output-head">
       <div class="eyebrow">▸ OUTPUT — PASTE INTO CHATGPT</div>
-      <button id="copy-btn">Copy</button>
+      <div class="output-actions">
+        <button id="save-btn">Save .txt</button>
+        <button id="copy-btn">Copy</button>
+      </div>
     </div>
     <div id="output-box"></div>
   </div>
 
-  <footer>SIGNAL TOOLS — no data leaves this page. Nothing is stored or sent anywhere.<br>v1.2 — 2026-08-06 (added clarity constraint)</footer>
+  <footer>SIGNAL TOOLS — no data leaves this page. Nothing is stored or sent anywhere.<br>v1.3 — 2026-08-07 (repetition/escalation/progression/hook guards, internal rhyme toggle, save-as-.txt, char count, collapsible advanced)</footer>
 </div>
 
 <script>
@@ -314,6 +370,7 @@ function buildPrompt(){
   const avoidPatterns = document.getElementById('avoid-patterns').checked;
   const chorusGuard = document.getElementById('chorus-guard').checked;
   const originalityCheck = document.getElementById('originality-check').checked;
+  const internalRhyme = document.getElementById('internal-rhyme').checked;
 
   let p = "";
 
@@ -335,16 +392,30 @@ function buildPrompt(){
   p += "- Every line within a given section (all verses together, all chorus repetitions together) must match in syllable count, give or take one syllable — this is a song, not a poem, and it has to be singable on a consistent melody.\n";
   p += "- Keep stressed syllables landing in a consistent place line to line within each section, so the meter doesn't lurch.\n";
   p += "- The chorus needs one clear, repeatable hook line — short, phonetically strong, easy to shout or sing back.\n";
-  p += "- Favor natural speech stress over forced rhyme. If a rhyme requires twisting normal word order or grammar, replace it.\n\n";
+  p += "- Favor natural speech stress over forced rhyme. If a rhyme requires twisting normal word order or grammar, replace it.\n";
+  if (internalRhyme){
+    p += "- Favor internal and near-rhyme over end-of-line rhyme where it fits naturally (e.g. \"cold hands / slow crash\") — don't force it into every line, but let it carry more of the rhythmic weight than end rhyme does.\n";
+  }
+  p += "\n";
 
   p += "CLARITY (non-negotiable)\n";
   p += "- Every line must be understandable on first listen, spoken at normal pace, with nothing dropped that a listener needs in order to parse it. Never sacrifice grammar or clear meaning to hit the syllable count — simplify the image instead of compressing the sentence.\n";
   p += "- One image per line, maximum. If a line stacks a metaphor, an unusual verb, and a compressed clause all at once, it will read as clutter, not density. Pick the single strongest image and let the rest of the line be plain.\n";
   p += "- Prefer ordinary verbs a listener already knows over invented or stretched ones, unless the stretch is doing real, deliberate work — and even then, only once or twice in the whole song, not line after line.\n\n";
 
+  p += "REPETITION CONTROL (non-negotiable)\n";
+  p += "- No noun, adjective, or metaphor should become a crutch. If a meaningful word (e.g. empty, hollow, broken, silence, blood) would appear more than twice across the whole lyric, replace the later instances with something more specific to the scene — unless it's the exact hook phrase repeating in the chorus by design.\n\n";
+
+  p += "IMAGE DISCIPLINE (non-negotiable)\n";
+  p += "- Do not combine unrelated metaphors within the same section, and do not let imagery escalate in intensity every few lines (e.g. drifting from a body detail, to fire, to an ocean, to the sky collapsing, within one verse). Commit to one physical reality per section instead of stacking bigger and bigger images.\n\n";
+
+  p += "EMOTIONAL PROGRESSION (non-negotiable)\n";
+  p += "- Each section must reveal new emotional information or a new detail of the scene. Never restate the same realization the previous section already made, just in different words — move the story or the feeling forward every time.\n\n";
+
   p += "ORIGINALITY (non-negotiable)\n";
   p += "- Every line must be 100% original. Do not paraphrase, echo, or lift phrasing, structure, or hook ideas from any existing published song.\n";
   p += "- Avoid generic songwriting stock phrases (e.g. \"burning like a fire,\" \"tears like rain,\" \"broken like glass\") — reach for imagery specific to the scene in the theme, not the nearest cliché.\n";
+  p += "- The central hook line should be distinctive enough that it could plausibly become the song's title. Avoid generic imperative phrases (\"stay with me,\" \"let me go,\" \"hold on,\" \"don't leave\") unless the theme specifically and literally demands that exact phrase.\n";
 
   if (rawGrounding){
     p += "- Ground the entire lyric in ONE concrete physical scene implied by the theme — a specific place, a specific body, a specific involuntary gesture (a hand that won't stop shaking, a breath held too long, a voice that cracks on one word). Build outward from that single moment rather than writing about the theme abstractly or conceptually.\n";
@@ -375,6 +446,15 @@ function buildPrompt(){
   return p;
 }
 
+document.getElementById('theme').addEventListener('input', function(){
+  document.getElementById('theme-count').textContent = this.value.length + ' characters';
+});
+
+document.getElementById('advanced-btn').addEventListener('click', function(){
+  this.classList.toggle('open');
+  document.getElementById('advanced-section').classList.toggle('open');
+});
+
 document.getElementById('generate').addEventListener('click', function(){
   const output = buildPrompt();
   document.getElementById('output-box').textContent = output;
@@ -397,6 +477,20 @@ document.getElementById('copy-btn').addEventListener('click', function(){
   });
 });
 
+document.getElementById('save-btn').addEventListener('click', function(){
+  const text = document.getElementById('output-box').textContent;
+  if (!text) return;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'prompt-forge-output.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
 // ── Unison handoff from Concept Extractor ──
 // Concept Extractor's Pass 3 opens this file as prompt-forge.html?theme=<scene>.
 // Pick that up on load, drop it straight into the theme field, and let the
@@ -406,11 +500,13 @@ document.getElementById('copy-btn').addEventListener('click', function(){
     const params = new URLSearchParams(window.location.search);
     const theme = params.get('theme');
     if (theme) {
-      document.getElementById('theme').value = theme;
+      const themeField = document.getElementById('theme');
+      themeField.value = theme;
+      document.getElementById('theme-count').textContent = theme.length + ' characters';
       const note = document.createElement('div');
       note.style.cssText = "font-family:'Space Mono',monospace;font-size:11px;color:var(--ok);margin-top:6px;";
       note.textContent = '◈ Scene loaded from Concept Extractor';
-      document.getElementById('theme').insertAdjacentElement('afterend', note);
+      themeField.insertAdjacentElement('afterend', note);
     }
   }catch(_){}
 })();

@@ -193,6 +193,41 @@
     display:none;
   }
 
+  .conflict-item{
+    font-size:12.5px;
+    line-height:1.5;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-left:2px solid var(--magenta);
+    padding:12px 14px;
+    margin-bottom:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .conflict-item .conflict-text{ color:var(--ink-dim); flex:1; min-width:200px; }
+  .conflict-item .conflict-text strong{ color:var(--ink); }
+  .conflict-fix-btn{
+    font-family:'Space Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--magenta);
+    color:var(--magenta);
+    padding:6px 10px;
+    border-radius:2px;
+    cursor:pointer;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .conflict-fix-btn:hover{ background:var(--magenta); color:var(--bg); }
+  .conflict-fix-btn:disabled{
+    border-color:var(--ok); color:var(--ok); background:transparent; cursor:default;
+  }
+
   .inline-btn{
     font-family:'Space Mono',monospace;
     font-size:11px;
@@ -351,6 +386,7 @@
     <div class="field" style="margin-top:16px;" id="desc-field" hidden>
       <label for="ref-description">Scene description — edit freely, this becomes the theme</label>
       <textarea id="ref-description" class="desc-box" style="min-height:160px;"></textarea>
+      <div id="conflict-warning" style="display:none; margin-top:10px;"></div>
     </div>
   </div>
 
@@ -474,7 +510,7 @@
     <div id="output-box"></div>
   </div>
 
-  <footer>SIGNAL TOOLS — nothing is stored or sent anywhere except, in Reference mode, directly to Groq/Anthropic's API using your own key.<br>v1.4 — 2026-08-11 (Reference mode: name-free scene description via Groq/Claude, feeds into existing prompt engine)</footer>
+  <footer>SIGNAL TOOLS — nothing is stored or sent anywhere except, in Reference mode, directly to Groq/Anthropic's API using your own key.<br>v1.5 — 2026-08-11 (conflict check: flags when the reference description's imagery collides with active ban toggles, with a one-click fix)</footer>
 </div>
 
 <script>
@@ -570,6 +606,100 @@ async function callClaude(prompt, key){
   return block.text.trim();
 }
 
+/* ---------- conflict detection: description vs active toggles ---------- */
+const CONFLICT_RULES = [
+  {
+    toggleId: 'avoid-patterns',
+    label: 'mirror/reflection imagery',
+    keywords: ['mirror', 'mirrors', 'reflection', 'reflections', 'reflective', 'reflected']
+  },
+  {
+    toggleId: 'avoid-patterns',
+    label: 'frozen stillness imagery',
+    keywords: ['frozen', 'stillness', 'motionless', 'paralyzed', 'paralysed']
+  },
+  {
+    toggleId: 'avoid-patterns',
+    label: 'doors/keys/locks imagery',
+    keywords: ['door', 'doors', 'doorway', 'key', 'keys', 'lock', 'locks', 'locked']
+  },
+  {
+    toggleId: 'avoid-patterns',
+    label: 'performed-calm narration',
+    keywords: ['performed calm', 'forced calm', 'feigned calm', 'masking calm']
+  },
+  {
+    toggleId: 'banned-vocab',
+    label: 'coffee/café / morning-dawn-sunrise vocabulary',
+    keywords: ['coffee', 'café', 'cafe', 'morning', 'dawn', 'sunrise']
+  },
+  {
+    toggleId: 'banned-vocab',
+    label: 'signal/system/frequency vocabulary',
+    keywords: ['signal', 'frequency', 'transmission', 'broadcast', 'static']
+  }
+];
+
+function scanConflicts(text){
+  const lower = text.toLowerCase();
+  const found = [];
+  CONFLICT_RULES.forEach(rule => {
+    const toggle = document.getElementById(rule.toggleId);
+    if (!toggle || !toggle.checked) return;
+    const hit = rule.keywords.find(kw => lower.includes(kw));
+    if (hit){
+      found.push({ toggleId: rule.toggleId, label: rule.label, keyword: hit });
+    }
+  });
+  return found;
+}
+
+function renderConflicts(text){
+  const box = document.getElementById('conflict-warning');
+  const conflicts = scanConflicts(text);
+  if (conflicts.length === 0){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  let html = '<div class="warn-note" style="margin-bottom:8px;">The reference description leans on imagery your active constraints ban — that\'ll get swapped out for something unrelated to the source. Turn off the conflicting constraint if you want the song to keep using it.</div>';
+  const seenToggles = new Set();
+  conflicts.forEach(c => {
+    const dedupeKey = c.toggleId + '::' + c.label;
+    if (seenToggles.has(dedupeKey)) return;
+    seenToggles.add(dedupeKey);
+    const toggleLabel = c.toggleId === 'avoid-patterns' ? '"Block overused imagery patterns"' : '"Block overused/cliché vocabulary"';
+    html += '<div class="conflict-item">'
+      + '<span class="conflict-text">Description uses <strong>' + c.keyword + '</strong>, part of ' + toggleLabel + '\'s ' + c.label + ' ban.</span>'
+      + '<button type="button" class="conflict-fix-btn" data-toggle="' + c.toggleId + '">Turn off</button>'
+      + '</div>';
+  });
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+document.getElementById('conflict-warning').addEventListener('click', function(e){
+  const btn = e.target.closest('.conflict-fix-btn');
+  if (!btn) return;
+  const toggle = document.getElementById(btn.dataset.toggle);
+  if (toggle){
+    toggle.checked = false;
+    btn.textContent = 'Off';
+    btn.disabled = true;
+  }
+});
+
+document.getElementById('ref-description').addEventListener('input', function(){
+  renderConflicts(this.value);
+});
+
+document.getElementById('avoid-patterns').addEventListener('change', function(){
+  renderConflicts(document.getElementById('ref-description').value);
+});
+document.getElementById('banned-vocab').addEventListener('change', function(){
+  renderConflicts(document.getElementById('ref-description').value);
+});
+
 async function fetchReferenceDescription(){
   const reference = document.getElementById('ref-input').value.trim();
   const angle = document.getElementById('ref-angle').value.trim();
@@ -633,6 +763,7 @@ document.getElementById('describe-btn').addEventListener('click', async function
     const descArea = document.getElementById('ref-description');
     descArea.value = text;
     descField.hidden = false;
+    renderConflicts(text);
   }
 });
 
@@ -754,6 +885,7 @@ document.getElementById('generate').addEventListener('click', async function(){
       descText = fetched;
       document.getElementById('ref-description').value = fetched;
       document.getElementById('desc-field').hidden = false;
+      renderConflicts(fetched);
     }
     themeText = descText;
   } else {

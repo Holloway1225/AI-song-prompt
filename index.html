@@ -527,7 +527,7 @@
     <div id="output-box"></div>
   </div>
 
-  <footer>SIGNAL TOOLS — nothing is stored or sent anywhere except, in Reference mode, directly to Groq/Anthropic's API using your own key.<br>v1.6 — 2026-08-11 (Reference mode: Identifiable Homage vs Abstract Mood setting — homage mode keeps the defining concept/iconic details and allows a title nod, still never quotes source dialogue/lyrics)</footer>
+  <footer>SIGNAL TOOLS — nothing is stored or sent anywhere except, in Reference mode, directly to Groq/Anthropic's API using your own key.<br>v1.7 — 2026-08-11 (conflict warnings now flag when a banned pattern looks central to the reference itself, in Identifiable Homage mode, and say turning the toggle off is probably right)</footer>
 </div>
 
 <script>
@@ -692,6 +692,27 @@ function scanConflicts(text){
   return found;
 }
 
+function scanConflicts(text){
+  const lower = text.toLowerCase();
+  const found = [];
+  CONFLICT_RULES.forEach(rule => {
+    const toggle = document.getElementById(rule.toggleId);
+    if (!toggle || !toggle.checked) return;
+    const hit = rule.keywords.find(kw => lower.includes(kw));
+    if (hit){
+      // count total occurrences across all this rule's keywords, to gauge how central it is
+      let count = 0;
+      rule.keywords.forEach(kw => {
+        const re = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        const m = lower.match(re);
+        if (m) count += m.length;
+      });
+      found.push({ toggleId: rule.toggleId, label: rule.label, keyword: hit, count: count });
+    }
+  });
+  return found;
+}
+
 function renderConflicts(text){
   const box = document.getElementById('conflict-warning');
   const conflicts = scanConflicts(text);
@@ -700,6 +721,7 @@ function renderConflicts(text){
     box.innerHTML = '';
     return;
   }
+  const isHomageRef = currentMode() === 'reference' && recognitionLevel() === 'identifiable';
   let html = '<div class="warn-note" style="margin-bottom:8px;">The reference description leans on imagery your active constraints ban — that\'ll get swapped out for something unrelated to the source. Turn off the conflicting constraint if you want the song to keep using it.</div>';
   const seenToggles = new Set();
   conflicts.forEach(c => {
@@ -707,8 +729,12 @@ function renderConflicts(text){
     if (seenToggles.has(dedupeKey)) return;
     seenToggles.add(dedupeKey);
     const toggleLabel = c.toggleId === 'avoid-patterns' ? '"Block overused imagery patterns"' : '"Block overused/cliché vocabulary"';
-    html += '<div class="conflict-item">'
-      + '<span class="conflict-text">Description uses <strong>' + c.keyword + '</strong>, part of ' + toggleLabel + '\'s ' + c.label + ' ban.</span>'
+    const isCore = isHomageRef && c.count >= 3;
+    const coreNote = isCore
+      ? ' — mentioned ' + c.count + ' times, this looks like it\'s core to the reference itself, not incidental. Turning this toggle off is probably the right call.'
+      : '';
+    html += '<div class="conflict-item"' + (isCore ? ' style="border-left-color:var(--amber);"' : '') + '>'
+      + '<span class="conflict-text">Description uses <strong>' + c.keyword + '</strong>, part of ' + toggleLabel + '\'s ' + c.label + ' ban.' + coreNote + '</span>'
       + '<button type="button" class="conflict-fix-btn" data-toggle="' + c.toggleId + '">Turn off</button>'
       + '</div>';
   });

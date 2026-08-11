@@ -18,6 +18,7 @@
     --magenta:#ff4d8d;
     --amber:#e0c34f;
     --ok:#5fe085;
+    --err:#ff6b6b;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -96,7 +97,7 @@
     margin-bottom:8px;
   }
   .field{ margin-bottom:22px; }
-  textarea, select, input[type="text"]{
+  textarea, select, input[type="text"], input[type="password"]{
     width:100%;
     background:var(--panel);
     border:1px solid var(--panel-line);
@@ -136,6 +137,10 @@
   .toggle-text strong{ display:block; font-size:14px; margin-bottom:3px; font-weight:600; }
   .toggle-text span{ font-size:12.5px; color:var(--ink-dim); line-height:1.4; }
 
+  .mode-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:22px; }
+  @media (max-width:560px){ .mode-row{ grid-template-columns:1fr; } }
+  .mode-row .toggle-row{ margin-bottom:0; }
+
   .advanced-toggle{
     font-family:'Space Mono',monospace;
     font-size:11px;
@@ -152,8 +157,9 @@
   }
   .advanced-toggle .arrow{ transition:transform 0.15s; display:inline-block; }
   .advanced-toggle.open .arrow{ transform:rotate(90deg); }
-  #advanced-section{ display:none; }
-  #advanced-section.open{ display:block; }
+  #advanced-section, #keys-section, #reference-section{ display:none; }
+  #advanced-section.open, #keys-section.open{ display:block; }
+  #reference-section.open{ display:block; }
 
   .core-note{
     font-size:12.5px;
@@ -164,6 +170,45 @@
     border-left:2px solid var(--ok);
     padding:12px 14px;
     margin-bottom:22px;
+  }
+  .warn-note{
+    font-size:12.5px;
+    color:var(--ink-dim);
+    line-height:1.5;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-left:2px solid var(--amber);
+    padding:12px 14px;
+    margin-bottom:18px;
+  }
+  .err-note{
+    font-size:12.5px;
+    color:var(--err);
+    line-height:1.5;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-left:2px solid var(--err);
+    padding:12px 14px;
+    margin-bottom:18px;
+    display:none;
+  }
+
+  .inline-btn{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--panel-line);
+    color:var(--ink-dim);
+    padding:9px 14px;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .inline-btn:hover{ border-color:var(--cyan); color:var(--cyan); }
+  .inline-btn:disabled{ opacity:0.5; cursor:default; }
+  .inline-btn.busy::after{
+    content:"";
   }
 
   button#generate{
@@ -184,6 +229,7 @@
   }
   button#generate:hover{ transform:translateY(-1px); }
   button#generate:active{ transform:translateY(0); }
+  button#generate:disabled{ opacity:0.6; cursor:default; transform:none; }
 
   #output-section{ margin-top:40px; display:none; }
   .output-head{
@@ -222,6 +268,21 @@
     overflow-y:auto;
   }
 
+  .desc-box{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-left:2px solid var(--amber);
+  }
+
+  .status-line{
+    font-family:'Space Mono',monospace;
+    font-size:11.5px;
+    color:var(--amber);
+    margin:8px 0 0;
+    display:none;
+  }
+  .status-line.active{ display:block; }
+
   footer{
     margin-top:56px;
     padding-top:20px;
@@ -242,13 +303,70 @@
       <span class="glitch-r" aria-hidden="true">PROMPT FORGE</span>
       <span class="glitch-c" aria-hidden="true">PROMPT FORGE</span>
     </h1>
-    <p>Feed it a theme. It hands back an engineered brief for ChatGPT — tuned for originality and rhythmic control, not a vague "write me a song about..." Copy the output, paste it into ChatGPT.</p>
+    <p>Feed it a theme — or a reference (a movie, show, book, real event) it should build a scene around. It hands back an engineered brief for ChatGPT, tuned for originality and rhythmic control. Copy the output, paste it into ChatGPT.</p>
   </header>
 
-  <div class="field">
+  <label>Mode</label>
+  <div class="mode-row">
+    <label class="toggle-row">
+      <input type="radio" name="mode" id="mode-original" value="original" checked>
+      <span class="toggle-text">
+        <strong>Original theme</strong>
+        <span>Type your own scene/idea directly.</span>
+      </span>
+    </label>
+    <label class="toggle-row">
+      <input type="radio" name="mode" id="mode-reference" value="reference">
+      <span class="toggle-text">
+        <strong>Reference work</strong>
+        <span>Name a movie, show, book, or event. It pulls a detailed, name-free scene description first.</span>
+      </span>
+    </label>
+  </div>
+
+  <div class="field" id="original-theme-field">
     <label for="theme">Theme / seed</label>
     <textarea id="theme" placeholder="e.g. a phone call you didn't answer in time, or the exact moment trust breaks"></textarea>
     <div class="char-count" id="theme-count">0 characters</div>
+  </div>
+
+  <div id="reference-section">
+    <div class="warn-note">This calls an API (Groq, falling back to Claude) to describe the reference. It's instructed to avoid character names, titles, and franchise-specific terms so the output is an original scene inspired by the source, not a retelling of it — but review it yourself before you use it. That's on you, not the model.</div>
+
+    <div class="row">
+      <div class="field">
+        <label for="ref-input">Reference (movie / show / book / event)</label>
+        <input type="text" id="ref-input" placeholder="e.g. Scream (1996)">
+      </div>
+      <div class="field">
+        <label for="ref-angle">Focus (optional)</label>
+        <input type="text" id="ref-angle" placeholder="e.g. the final girl's arc, or just the opening scene">
+      </div>
+    </div>
+
+    <button type="button" class="inline-btn" id="describe-btn">Generate description</button>
+    <div class="status-line" id="describe-status">Analyzing reference...</div>
+    <div class="err-note" id="describe-error"></div>
+
+    <div class="field" style="margin-top:16px;" id="desc-field" hidden>
+      <label for="ref-description">Scene description — edit freely, this becomes the theme</label>
+      <textarea id="ref-description" class="desc-box" style="min-height:160px;"></textarea>
+    </div>
+  </div>
+
+  <button type="button" class="advanced-toggle" id="keys-btn"><span class="arrow">▸</span> API keys (needed for Reference mode)</button>
+  <div id="keys-section">
+    <div class="row">
+      <div class="field">
+        <label for="key-groq">Groq API key (primary)</label>
+        <input type="password" id="key-groq" placeholder="gsk_...">
+      </div>
+      <div class="field">
+        <label for="key-anthropic">Anthropic API key (fallback)</label>
+        <input type="password" id="key-anthropic" placeholder="sk-ant-...">
+      </div>
+    </div>
+    <div class="core-note" style="margin-bottom:8px;">Stored only in this browser's localStorage. Sent only directly to Groq or Anthropic's API when you generate a description — nowhere else.</div>
   </div>
 
   <div class="row">
@@ -343,6 +461,7 @@
   </div>
 
   <button id="generate">Generate prompt</button>
+  <div class="status-line" id="generate-status">Working...</div>
 
   <div id="output-section">
     <div class="output-head">
@@ -355,12 +474,171 @@
     <div id="output-box"></div>
   </div>
 
-  <footer>SIGNAL TOOLS — no data leaves this page. Nothing is stored or sent anywhere.<br>v1.3 — 2026-08-07 (repetition/escalation/progression/hook guards, internal rhyme toggle, save-as-.txt, char count, collapsible advanced)</footer>
+  <footer>SIGNAL TOOLS — nothing is stored or sent anywhere except, in Reference mode, directly to Groq/Anthropic's API using your own key.<br>v1.4 — 2026-08-11 (Reference mode: name-free scene description via Groq/Claude, feeds into existing prompt engine)</footer>
 </div>
 
 <script>
-function buildPrompt(){
-  const theme = document.getElementById('theme').value.trim() || "[no theme entered — describe one concrete moment before generating]";
+/* ---------- mode switching ---------- */
+function currentMode(){
+  return document.getElementById('mode-reference').checked ? 'reference' : 'original';
+}
+
+function applyMode(){
+  const ref = currentMode() === 'reference';
+  document.getElementById('original-theme-field').style.display = ref ? 'none' : 'block';
+  document.getElementById('reference-section').classList.toggle('open', ref);
+  document.getElementById('keys-section').classList.toggle('open', ref && document.getElementById('keys-section').dataset.forced === '1');
+}
+
+document.getElementById('mode-original').addEventListener('change', applyMode);
+document.getElementById('mode-reference').addEventListener('change', applyMode);
+
+/* ---------- API keys: load/save ---------- */
+const groqKeyEl = document.getElementById('key-groq');
+const anthropicKeyEl = document.getElementById('key-anthropic');
+
+(function loadKeys(){
+  try{
+    groqKeyEl.value = localStorage.getItem('key_groq') || '';
+    anthropicKeyEl.value = localStorage.getItem('key_anthropic') || '';
+  }catch(_){}
+})();
+groqKeyEl.addEventListener('change', function(){ try{ localStorage.setItem('key_groq', this.value); }catch(_){} });
+anthropicKeyEl.addEventListener('change', function(){ try{ localStorage.setItem('key_anthropic', this.value); }catch(_){} });
+
+document.getElementById('keys-btn').addEventListener('click', function(){
+  this.classList.toggle('open');
+  const sec = document.getElementById('keys-section');
+  sec.classList.toggle('open');
+  sec.dataset.forced = sec.classList.contains('open') ? '1' : '0';
+});
+
+/* ---------- reference description: API calls ---------- */
+function buildDescriptionPrompt(reference, angle){
+  let p = "You are a story analyst preparing reference material for a songwriter who wants to write an ORIGINAL song inspired by the emotional core of a specific work, without retelling it or naming it.\n\n";
+  p += "Reference: " + reference + "\n";
+  if (angle){ p += "Focus especially on: " + angle + "\n"; }
+  p += "\nWrite a dense, vivid scene-and-mood brief covering: (1) the emotional architecture and arc, (2) the key beats or turning points relevant to the focus, (3) recurring imagery, atmosphere, and sensory detail, (4) how the tone shifts.\n\n";
+  p += "STRICT RULES:\n";
+  p += "- Do not use the title, any character names, actor names, franchise names, or other proprietary/trademarked terms anywhere in your answer.\n";
+  p += "- Refer to people by role only (e.g. \"the babysitter\", \"the survivor\", \"the caller\"), and places/things generically (e.g. \"the house\", \"the phone\", \"the mask\") rather than by any proper name.\n";
+  p += "- Do not quote or closely paraphrase any actual dialogue.\n";
+  p += "- Write 3-4 dense paragraphs a songwriter could use as a mood/scene brief. Not a plot-summary listicle, not a review, no meta-commentary about the source.\n\n";
+  p += "Output only the brief itself, nothing else.";
+  return p;
+}
+
+async function callGroq(prompt, key){
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    })
+  });
+  if (!res.ok){ throw new Error('Groq error ' + res.status); }
+  const data = await res.json();
+  const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!text) throw new Error('Groq returned no content');
+  return text.trim();
+}
+
+async function callClaude(prompt, key){
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 900,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!res.ok){ throw new Error('Claude error ' + res.status); }
+  const data = await res.json();
+  const block = data && data.content && data.content.find(b => b.type === 'text');
+  if (!block || !block.text) throw new Error('Claude returned no content');
+  return block.text.trim();
+}
+
+async function fetchReferenceDescription(){
+  const reference = document.getElementById('ref-input').value.trim();
+  const angle = document.getElementById('ref-angle').value.trim();
+  const errBox = document.getElementById('describe-error');
+  const statusBox = document.getElementById('describe-status');
+  errBox.style.display = 'none';
+
+  if (!reference){
+    errBox.textContent = 'Enter a reference first.';
+    errBox.style.display = 'block';
+    return null;
+  }
+
+  const groqKey = groqKeyEl.value.trim();
+  const claudeKey = anthropicKeyEl.value.trim();
+  if (!groqKey && !claudeKey){
+    errBox.textContent = 'Add a Groq or Anthropic API key above first.';
+    errBox.style.display = 'block';
+    document.getElementById('keys-section').classList.add('open');
+    document.getElementById('keys-btn').classList.add('open');
+    return null;
+  }
+
+  const prompt = buildDescriptionPrompt(reference, angle);
+  const btn = document.getElementById('describe-btn');
+  btn.disabled = true;
+  statusBox.classList.add('active');
+
+  try{
+    let text;
+    if (groqKey){
+      try{
+        text = await callGroq(prompt, groqKey);
+      }catch(groqErr){
+        if (claudeKey){
+          statusBox.textContent = 'Groq failed, falling back to Claude...';
+          text = await callClaude(prompt, claudeKey);
+        } else {
+          throw groqErr;
+        }
+      }
+    } else {
+      text = await callClaude(prompt, claudeKey);
+    }
+    return text;
+  } catch(err){
+    errBox.textContent = 'Description generation failed: ' + err.message;
+    errBox.style.display = 'block';
+    return null;
+  } finally {
+    btn.disabled = false;
+    statusBox.classList.remove('active');
+    statusBox.textContent = 'Analyzing reference...';
+  }
+}
+
+document.getElementById('describe-btn').addEventListener('click', async function(){
+  const text = await fetchReferenceDescription();
+  if (text){
+    const descField = document.getElementById('desc-field');
+    const descArea = document.getElementById('ref-description');
+    descArea.value = text;
+    descField.hidden = false;
+  }
+});
+
+/* ---------- main prompt builder ---------- */
+function buildPrompt(themeText){
+  const theme = themeText || "[no theme entered — describe one concrete moment before generating]";
   const mood = document.getElementById('mood').value.trim();
   const pov = document.getElementById('pov').value;
   const structure = document.getElementById('structure').value;
@@ -416,6 +694,9 @@ function buildPrompt(){
   p += "- Every line must be 100% original. Do not paraphrase, echo, or lift phrasing, structure, or hook ideas from any existing published song.\n";
   p += "- Avoid generic songwriting stock phrases (e.g. \"burning like a fire,\" \"tears like rain,\" \"broken like glass\") — reach for imagery specific to the scene in the theme, not the nearest cliché.\n";
   p += "- The central hook line should be distinctive enough that it could plausibly become the song's title. Avoid generic imperative phrases (\"stay with me,\" \"let me go,\" \"hold on,\" \"don't leave\") unless the theme specifically and literally demands that exact phrase.\n";
+  if (currentMode() === 'reference'){
+    p += "- The theme below is a mood/scene brief derived from a reference work, deliberately stripped of names and titles. Do not reintroduce any title, character name, or proper noun tied to that source. Treat it purely as atmosphere and emotional architecture to write an original scene from.\n";
+  }
 
   if (rawGrounding){
     p += "- Ground the entire lyric in ONE concrete physical scene implied by the theme — a specific place, a specific body, a specific involuntary gesture (a hand that won't stop shaking, a breath held too long, a voice that cracks on one word). Build outward from that single moment rather than writing about the theme abstractly or conceptually.\n";
@@ -455,8 +736,31 @@ document.getElementById('advanced-btn').addEventListener('click', function(){
   document.getElementById('advanced-section').classList.toggle('open');
 });
 
-document.getElementById('generate').addEventListener('click', function(){
-  const output = buildPrompt();
+document.getElementById('generate').addEventListener('click', async function(){
+  const genBtn = this;
+  const genStatus = document.getElementById('generate-status');
+  let themeText;
+
+  if (currentMode() === 'reference'){
+    let descText = document.getElementById('ref-description').value.trim();
+    if (!descText){
+      genBtn.disabled = true;
+      genStatus.textContent = 'Analyzing reference...';
+      genStatus.classList.add('active');
+      const fetched = await fetchReferenceDescription();
+      genBtn.disabled = false;
+      genStatus.classList.remove('active');
+      if (!fetched){ return; }
+      descText = fetched;
+      document.getElementById('ref-description').value = fetched;
+      document.getElementById('desc-field').hidden = false;
+    }
+    themeText = descText;
+  } else {
+    themeText = document.getElementById('theme').value.trim();
+  }
+
+  const output = buildPrompt(themeText);
   document.getElementById('output-box').textContent = output;
   document.getElementById('output-section').style.display = 'block';
   document.getElementById('copy-btn').classList.remove('copied');
@@ -493,8 +797,8 @@ document.getElementById('save-btn').addEventListener('click', function(){
 
 // ── Unison handoff from Concept Extractor ──
 // Concept Extractor's Pass 3 opens this file as prompt-forge.html?theme=<scene>.
-// Pick that up on load, drop it straight into the theme field, and let the
-// person just hit Generate — no retyping the scene by hand.
+// Pick that up on load, drop it straight into the theme field (original mode),
+// and let the person just hit Generate — no retyping the scene by hand.
 (function loadThemeFromQuery(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -510,6 +814,8 @@ document.getElementById('save-btn').addEventListener('click', function(){
     }
   }catch(_){}
 })();
+
+applyMode();
 </script>
 </body>
 </html>

@@ -366,7 +366,24 @@
   </div>
 
   <div id="reference-section">
-    <div class="warn-note">This calls an API (Groq, falling back to Claude) to describe the reference. It's instructed to avoid character names, titles, and franchise-specific terms so the output is an original scene inspired by the source, not a retelling of it — but review it yourself before you use it. That's on you, not the model.</div>
+    <div class="warn-note">Calls an API (Groq, falling back to Claude) to build a scene brief from the reference. Depending on the setting below, it either keeps things abstract or writes specifically enough that genre fans will clock the source. Either way it won't quote actual dialogue or lyrics — that's the one hard line. Review the output before you use it.</div>
+
+    <div class="mode-row" style="margin-bottom:16px;">
+      <label class="toggle-row">
+        <input type="radio" name="recognition" id="rec-identifiable" value="identifiable" checked>
+        <span class="toggle-text">
+          <strong>Identifiable homage</strong>
+          <span>Keeps the specific, defining concept/mechanic and iconic details intact — the title itself can appear once as a nod (e.g. a refrain or outro line) if it strengthens the reference. This is what you want for "listener goes 'oh, that's Scream.'"</span>
+        </span>
+      </label>
+      <label class="toggle-row">
+        <input type="radio" name="recognition" id="rec-abstract" value="abstract">
+        <span class="toggle-text">
+          <strong>Abstract mood only</strong>
+          <span>Strips names, titles, and identifying mechanics — just atmosphere and emotional architecture. Use this if you want inspiration without the source being recognizable.</span>
+        </span>
+      </label>
+    </div>
 
     <div class="row">
       <div class="field">
@@ -510,7 +527,7 @@
     <div id="output-box"></div>
   </div>
 
-  <footer>SIGNAL TOOLS — nothing is stored or sent anywhere except, in Reference mode, directly to Groq/Anthropic's API using your own key.<br>v1.5 — 2026-08-11 (conflict check: flags when the reference description's imagery collides with active ban toggles, with a one-click fix)</footer>
+  <footer>SIGNAL TOOLS — nothing is stored or sent anywhere except, in Reference mode, directly to Groq/Anthropic's API using your own key.<br>v1.6 — 2026-08-11 (Reference mode: Identifiable Homage vs Abstract Mood setting — homage mode keeps the defining concept/iconic details and allows a title nod, still never quotes source dialogue/lyrics)</footer>
 </div>
 
 <script>
@@ -550,19 +567,40 @@ document.getElementById('keys-btn').addEventListener('click', function(){
 });
 
 /* ---------- reference description: API calls ---------- */
+function recognitionLevel(){
+  return document.getElementById('rec-abstract').checked ? 'abstract' : 'identifiable';
+}
+
 function buildDescriptionPrompt(reference, angle){
-  let p = "You are a story analyst preparing reference material for a songwriter who wants to write an ORIGINAL song inspired by the emotional core of a specific work, without retelling it or naming it.\n\n";
-  p += "Reference: " + reference + "\n";
-  if (angle){ p += "Focus especially on: " + angle + "\n"; }
-  p += "\nWrite a dense, vivid scene-and-mood brief covering: (1) the emotional architecture and arc, (2) the key beats or turning points relevant to the focus, (3) recurring imagery, atmosphere, and sensory detail, (4) how the tone shifts.\n\n";
-  p += "STRICT RULES:\n";
-  p += "- Do not use the title, any character names, actor names, franchise names, or other proprietary/trademarked terms anywhere in your answer.\n";
-  p += "- Refer to people by role only (e.g. \"the babysitter\", \"the survivor\", \"the caller\"), and places/things generically (e.g. \"the house\", \"the phone\", \"the mask\") rather than by any proper name.\n";
-  p += "- Do not quote or closely paraphrase any actual dialogue.\n";
-  p += "- Write 3-4 dense paragraphs a songwriter could use as a mood/scene brief. Not a plot-summary listicle, not a review, no meta-commentary about the source.\n\n";
-  p += "Output only the brief itself, nothing else.";
+  const level = recognitionLevel();
+  let p;
+
+  if (level === 'identifiable'){
+    p = "You are a story analyst preparing reference material for a songwriter writing an ORIGINAL homage song for a horror-movie-themed album. The goal is for genre-savvy listeners to recognize which film inspired the song — this is intentional allusion, like countless songs that reference movies by name or concept. It is NOT a request to reproduce the film's text.\n\n";
+    p += "Reference: " + reference + "\n";
+    if (angle){ p += "Focus especially on: " + angle + "\n"; }
+    p += "\nWrite a dense, vivid scene-and-mood brief covering: (1) the emotional architecture and arc, (2) the specific, defining concept or mechanic that makes this film recognizable (the thing a fan would instantly place — e.g. what the killer does, what the object does, what rule governs the horror), (3) recurring imagery and sensory detail, (4) how the tone shifts.\n\n";
+    p += "RULES:\n";
+    p += "- Describe the defining concept/mechanic clearly enough to be recognizable. You may name the title itself once, and may reference iconic elements directly (e.g. the mask, the phone call, the mirror ritual) rather than talking around them.\n";
+    p += "- Do NOT quote or closely paraphrase actual dialogue or any published lyrics — describe scenes and concepts in your own words, never lift lines.\n";
+    p += "- Do not write this as a scene-by-scene plot summary or a chronological retelling — it's a mood/concept brief a songwriter will build one original scene from, not a synopsis.\n";
+    p += "- Write 3-4 dense paragraphs. Not a listicle, not a review, no meta-commentary about the source.\n\n";
+    p += "Output only the brief itself, nothing else.";
+  } else {
+    p = "You are a story analyst preparing reference material for a songwriter who wants to write an ORIGINAL song inspired by the emotional core of a specific work, without retelling it or naming it.\n\n";
+    p += "Reference: " + reference + "\n";
+    if (angle){ p += "Focus especially on: " + angle + "\n"; }
+    p += "\nWrite a dense, vivid scene-and-mood brief covering: (1) the emotional architecture and arc, (2) the key beats or turning points relevant to the focus, (3) recurring imagery, atmosphere, and sensory detail, (4) how the tone shifts.\n\n";
+    p += "STRICT RULES:\n";
+    p += "- Do not use the title, any character names, actor names, franchise names, or other proprietary/trademarked terms anywhere in your answer.\n";
+    p += "- Refer to people by role only (e.g. \"the babysitter\", \"the survivor\", \"the caller\"), and places/things generically (e.g. \"the house\", \"the phone\", \"the mask\") rather than by any proper name.\n";
+    p += "- Do not quote or closely paraphrase any actual dialogue.\n";
+    p += "- Write 3-4 dense paragraphs a songwriter could use as a mood/scene brief. Not a plot-summary listicle, not a review, no meta-commentary about the source.\n\n";
+    p += "Output only the brief itself, nothing else.";
+  }
   return p;
 }
+
 
 async function callGroq(prompt, key){
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -826,7 +864,11 @@ function buildPrompt(themeText){
   p += "- Avoid generic songwriting stock phrases (e.g. \"burning like a fire,\" \"tears like rain,\" \"broken like glass\") — reach for imagery specific to the scene in the theme, not the nearest cliché.\n";
   p += "- The central hook line should be distinctive enough that it could plausibly become the song's title. Avoid generic imperative phrases (\"stay with me,\" \"let me go,\" \"hold on,\" \"don't leave\") unless the theme specifically and literally demands that exact phrase.\n";
   if (currentMode() === 'reference'){
-    p += "- The theme below is a mood/scene brief derived from a reference work, deliberately stripped of names and titles. Do not reintroduce any title, character name, or proper noun tied to that source. Treat it purely as atmosphere and emotional architecture to write an original scene from.\n";
+    if (recognitionLevel() === 'identifiable'){
+      p += "- The theme below is a mood/concept brief built as an intentional homage to a specific film, meant for genre-savvy listeners to recognize. Keep the identifying concept and iconic details intact, and feel free to work in a direct nod to the title itself (e.g. as a refrain, chorus tag, or outro line) if it strengthens the homage. The one hard rule: every line of the lyric must still be your own original wording — never quote or closely paraphrase actual dialogue or published lyrics from the source.\n";
+    } else {
+      p += "- The theme below is a mood/scene brief derived from a reference work, deliberately stripped of names and titles. Do not reintroduce any title, character name, or proper noun tied to that source. Treat it purely as atmosphere and emotional architecture to write an original scene from.\n";
+    }
   }
 
   if (rawGrounding){
